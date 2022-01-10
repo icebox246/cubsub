@@ -1,6 +1,7 @@
 # CubSub
 
 A simple game written in C, with SDL2.
+Currently only supported platform is Linux (other unix-like OSs may also work).
 
 Player can control a submarine and move it around randomly generated world.
 
