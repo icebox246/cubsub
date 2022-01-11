@@ -14,6 +14,7 @@
 #define HEIGHT 800
 
 Uint32 minU32(Uint32 a, Uint32 b) { return (a > b) ? b : a; }
+Uint32 maxU32(Uint32 a, Uint32 b) { return (a > b) ? a : b; }
 
 float slen(float a, float b) { return a * a + b * b; }
 
@@ -27,7 +28,7 @@ typedef struct {
     int* pts;
 } Grid;
 
-bool is_point_colliding(int x, int y, Grid* grid) {
+int is_point_colliding(int x, int y, Grid* grid) {
     int gx = minU32(x / grid->s, grid->w - 1);
     int gy = minU32(y / grid->s, grid->h - 1);
 
@@ -45,7 +46,10 @@ bool is_point_colliding(int x, int y, Grid* grid) {
     float c2 = lerp(v[2], v[3], dx);
 
     int c = lerp(c1, c2, dy);
-    return c < 150;
+    if (c < 150) {
+        return c;
+    } else
+        return 0;
 }
 
 SDL_Surface* generate_surface(int w, int h, Grid* grid) {
@@ -53,7 +57,8 @@ SDL_Surface* generate_surface(int w, int h, Grid* grid) {
 
     for (int x = 0; x < w; x++) {
         for (int y = 0; y < h; y++) {
-            pixels[x + y * w] = is_point_colliding(x, y, grid) ? GRAY(200) : 0;
+            int col = is_point_colliding(x, y, grid);
+            pixels[x + y * w] = col ? GRAY(col / 30 * 30 + 100) : 0;
         }
     }
     SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(
@@ -66,9 +71,50 @@ typedef struct {
     float vx, vy;
     int r;
     SDL_Texture* tex;
-} PlayerSub;
+} Player;
 
-bool is_player_colliding(PlayerSub* player, Grid* grid) {
+typedef struct {
+    float x, y, r;
+    float vx, vy;
+    bool done;
+} Fish;
+
+bool is_fish_colliding_with_player(Fish* fish, Player* player) {
+    if (fabs(fish->x - player->x) <= fish->r + player->r &&
+        fabs(fish->y - player->y) <= fish->r + player->r) {
+        return true;
+    }
+    return false;
+}
+
+void draw_fish(SDL_Renderer* renderer, Fish* fish, SDL_Texture* fish_tex) {
+    SDL_Rect fish_rect = {.x = fish->x - fish->r * 2 * (64 + 32) / 128.f,
+                          .y = fish->y - fish->r,
+                          .w = fish->r * 2 * (128 + 32) / 128.f,
+                          .h = fish->r * 2};
+    int flip = 0;
+    if (fish->vx < 0) {
+        flip = SDL_FLIP_HORIZONTAL;
+        fish_rect.x += fish->r * 2 * (32) / 128.f;
+    }
+    SDL_RenderCopyEx(renderer, fish_tex, NULL, &fish_rect, 0, NULL, flip);
+}
+
+void update_fish(Fish* fish, Grid* grid, float dt) {
+    const float fish_speed = 20;
+    fish->x += fish->vx * dt;
+    fish->y += fish->vy * dt;
+
+    if (is_point_colliding(fish->x, fish->y, grid)) {
+        fish->x -= fish->vx * dt;
+        fish->y -= fish->vy * dt;
+        float angle = (rand() % (31415926 * 2)) / 10000000.f;
+        fish->vx = cos(angle) * fish_speed;
+        fish->vy = sin(angle) * fish_speed;
+    }
+}
+
+bool is_player_colliding(Player* player, Grid* grid) {
     bool collision = 0;
     for (int _x = -1; _x <= 1; _x++) {
         for (int _y = -1; _y <= 1; _y++) {
@@ -83,7 +129,7 @@ bool is_player_colliding(PlayerSub* player, Grid* grid) {
     return collision;
 }
 
-void draw_player(SDL_Renderer* renderer, PlayerSub* player) {
+void draw_player(SDL_Renderer* renderer, Player* player) {
     SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
     const SDL_Rect body_rect = {.x = 0, .y = 0, .w = 256, .h = 256};
     const SDL_Rect visor_rect = {.x = 0, .y = 256, .w = 256, .h = 256};
@@ -97,7 +143,7 @@ void draw_player(SDL_Renderer* renderer, PlayerSub* player) {
     SDL_RenderCopy(renderer, player->tex, &visor_rect, &player_rect);
 }
 
-void update_player(PlayerSub* player, Grid* grid, float dt) {
+void update_player(Player* player, Grid* grid, float dt) {
     const float max_v = 200;
     int dx = 0, dy = 0;
     if (key_pressed[K_UP]) dy--;
@@ -186,15 +232,39 @@ int main() {
     SDL_FreeSurface(surf);
     printf("[INFO] Done generating texture\n");
 
+    // Load textures
     surf = SDL_LoadBMP("cubsub.bmp");
     SDL_Texture* player_tex = SDL_CreateTextureFromSurface(renderer, surf);
     SDL_FreeSurface(surf);
 
-    PlayerSub player = {.x = 200, .y = 200, .r = 16, .tex = player_tex};
+    surf = SDL_LoadBMP("cubfish.bmp");
+    SDL_Texture* fish_tex = SDL_CreateTextureFromSurface(renderer, surf);
+    SDL_FreeSurface(surf);
+
+    // Create player
+    Player player = {.x = 200, .y = 200, .r = 16, .tex = player_tex};
 
     while (is_player_colliding(&player, &grid)) {
         player.x = rand() % WIDTH;
         player.y = rand() % HEIGHT;
+    }
+
+    // Create fishes
+    int fish_count = 16;
+    Fish fishes[fish_count];
+
+    for (int i = 0; i < fish_count; i++) {
+        fishes[i].x = rand() % WIDTH;
+        fishes[i].y = rand() % HEIGHT;
+        fishes[i].r = 8;
+        while (is_point_colliding(fishes[i].x, fishes[i].y, &grid)) {
+            fishes[i].x = rand() % WIDTH;
+            fishes[i].y = rand() % HEIGHT;
+        }
+        float angle = (rand() % (31415926 * 2)) / 10000000.f;
+        fishes[i].vx = cos(angle) * 20;
+        fishes[i].vy = sin(angle) * 20;
+        fishes[i].done = 0;
     }
 
     bool quit = 0;
@@ -240,6 +310,18 @@ int main() {
         SDL_RenderCopy(renderer, bg_tex, NULL, NULL);
 
         update_player(&player, &grid, dt);
+
+        for (int i = 0; i < fish_count; i++) {
+            if (!fishes[i].done) {
+                update_fish(&fishes[i], &grid, dt);
+                draw_fish(renderer, &fishes[i], fish_tex);
+            }
+            if (!fishes[i].done &&
+                is_fish_colliding_with_player(&fishes[i], &player)) {
+                fishes[i].done = 1;
+            }
+        }
+
         draw_player(renderer, &player);
 
         // swap buffers
