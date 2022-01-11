@@ -28,6 +28,19 @@ typedef struct {
     int* pts;
 } Grid;
 
+typedef struct {
+    float x, y;
+    float vx, vy;
+    int r;
+    SDL_Texture* tex;
+} Player;
+
+typedef struct {
+    float x, y, r;
+    float vx, vy;
+    bool done;
+} Fish;
+
 int is_point_colliding(int x, int y, Grid* grid) {
     int gx = minU32(x / grid->s, grid->w - 1);
     int gy = minU32(y / grid->s, grid->h - 1);
@@ -66,18 +79,6 @@ SDL_Surface* generate_surface(int w, int h, Grid* grid) {
     return surface;
 }
 
-typedef struct {
-    float x, y;
-    float vx, vy;
-    int r;
-    SDL_Texture* tex;
-} Player;
-
-typedef struct {
-    float x, y, r;
-    float vx, vy;
-    bool done;
-} Fish;
 
 bool is_fish_colliding_with_player(Fish* fish, Player* player) {
     if (fabs(fish->x - player->x) <= fish->r + player->r &&
