@@ -79,7 +79,6 @@ SDL_Surface* generate_surface(int w, int h, Grid* grid) {
     return surface;
 }
 
-
 bool is_fish_colliding_with_player(Fish* fish, Player* player) {
     if (fabs(fish->x - player->x) <= fish->r + player->r &&
         fabs(fish->y - player->y) <= fish->r + player->r) {

@@ -11,7 +11,7 @@ Todo:
 - [x] Add a controllable player entity with physics and collisions
 - [x] Generate smoother terrain (i used better smoothing algo)
 - [x] Make sure player can move after spawning
-- [ ] Add objectives to be collected
+- [x] Add objectives to be collected
 - [ ] Add enemies to be avoided
 - [ ] Add UI with info about current state of game
 - [ ] Add level progression
