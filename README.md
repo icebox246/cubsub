@@ -9,8 +9,8 @@ Todo:
 
 - [x] Generate random world, using mathematical functions
 - [x] Add a controllable player entity with physics and collisions
-- [ ] Generate smoother terrain (maybe random worms alorithm coupled with multiplying values in the grid)
-- [ ] Make sure player can move after spawning
+- [x] Generate smoother terrain (i used better smoothing algo)
+- [x] Make sure player can move after spawning
 - [ ] Add objectives to be collected
 - [ ] Add enemies to be avoided
 - [ ] Add UI with info about current state of game

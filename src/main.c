@@ -68,6 +68,21 @@ typedef struct {
     SDL_Texture* tex;
 } PlayerSub;
 
+bool is_player_colliding(PlayerSub* player, Grid* grid) {
+    bool collision = 0;
+    for (int _x = -1; _x <= 1; _x++) {
+        for (int _y = -1; _y <= 1; _y++) {
+            if (is_point_colliding(player->x + player->r * _x,
+                                   player->y + player->r * _y, grid)) {
+                collision = 1;
+                break;
+            }
+        }
+        if (collision) break;
+    }
+    return collision;
+}
+
 void draw_player(SDL_Renderer* renderer, PlayerSub* player) {
     SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
     const SDL_Rect body_rect = {.x = 0, .y = 0, .w = 256, .h = 256};
@@ -94,34 +109,12 @@ void update_player(PlayerSub* player, Grid* grid, float dt) {
     player->vy = lerp(player->vy, max_v * dy, dt * 3);
 
     player->x += player->vx * dt;
-    bool collision = 0;
-    for (int _x = -1; _x <= 1; _x++) {
-        for (int _y = -1; _y <= 1; _y++) {
-            if (is_point_colliding(player->x + player->r * _x,
-                                   player->y + player->r * _y, grid)) {
-                collision = 1;
-                break;
-            }
-        }
-        if (collision) break;
-    }
-    if (collision) {
+    if (is_player_colliding(player, grid)) {
         player->x -= player->vx * dt;
         player->vx *= -1;
     }
     player->y += player->vy * dt;
-    collision = 0;
-    for (int _x = -1; _x <= 1; _x++) {
-        for (int _y = -1; _y <= 1; _y++) {
-            if (is_point_colliding(player->x + player->r * _x,
-                                   player->y + player->r * _y, grid)) {
-                collision = 1;
-                break;
-            }
-        }
-        if (collision) break;
-    }
-    if (collision) {
+    if (is_player_colliding(player, grid)) {
         player->y -= player->vy * dt;
         player->vy *= -1;
     }
@@ -157,17 +150,26 @@ int main() {
         }
     }
 
+    int sw[9] = {
+        1, 4, 1,  //
+        4, 8, 4,  //
+        1, 4, 1   //
+    };
+    int weight_sum = 0;
+    for (int i = 0; i < 9; i++) weight_sum += sw[i];
+
     for (int i = 0; i < 5; i++) {
         for (int x = 1; x < gw - 1; x++) {
             for (int y = 1; y < gh - 1; y++) {
-                _grid2[x + y * gw] = _grid[x + y * gw] * 8;
-                _grid2[x + y * gw] += _grid[x + 1 + y * gw];
-                _grid2[x + y * gw] += _grid[x - 1 + y * gw];
-                _grid2[x + y * gw] += _grid[x + (y + 1) * gw];
-                _grid2[x + y * gw] += _grid[x + (y - 1) * gw];
-
-                _grid2[x + y * gw] /= 12;
-                assert(_grid2[x + y * gw] < 256);
+                _grid2[x + y * gw] = 0;
+                for (int _x = -1; _x < 2; _x++) {
+                    for (int _y = -1; _y < 2; _y++) {
+                        _grid2[x + y * gw] += sw[(_x + 1) + (_y + 1) * 3] *
+                                              _grid[x + _x + (y + _y) * gw];
+                    }
+                }
+                _grid2[x + y * gw] /= weight_sum;
+                /* assert(_grid2[x + y * gw] < 256); */
             }
         }
         for (int x = 1; x < gw - 1; x++) {
@@ -190,7 +192,7 @@ int main() {
 
     PlayerSub player = {.x = 200, .y = 200, .r = 16, .tex = player_tex};
 
-    while (is_point_colliding(player.x, player.y, &grid)) {
+    while (is_player_colliding(&player, &grid)) {
         player.x = rand() % WIDTH;
         player.y = rand() % HEIGHT;
     }
