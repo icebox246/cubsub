@@ -158,7 +158,7 @@ int main() {
     int weight_sum = 0;
     for (int i = 0; i < 9; i++) weight_sum += sw[i];
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 3; i++) {
         for (int x = 1; x < gw - 1; x++) {
             for (int y = 1; y < gh - 1; y++) {
                 _grid2[x + y * gw] = 0;
