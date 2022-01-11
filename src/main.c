@@ -46,7 +46,7 @@ int is_point_colliding(int x, int y, Grid* grid) {
     float c2 = lerp(v[2], v[3], dx);
 
     int c = lerp(c1, c2, dy);
-    if (c < 150) {
+    if (c < 120) {
         return c;
     } else
         return 0;
@@ -58,7 +58,7 @@ SDL_Surface* generate_surface(int w, int h, Grid* grid) {
     for (int x = 0; x < w; x++) {
         for (int y = 0; y < h; y++) {
             int col = is_point_colliding(x, y, grid);
-            pixels[x + y * w] = col ? GRAY(col / 30 * 30 + 100) : 0;
+            pixels[x + y * w] = col ? GRAY(col / 20 * 20 + 100) : 0;
         }
     }
     SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(
@@ -166,29 +166,13 @@ void update_player(Player* player, Grid* grid, float dt) {
     }
 }
 
-int main() {
-    printf("[INFO] Hello, SubCub!\n");
-    srand(time(0));
-
-    // init sdl
-    if (SDL_Init(SDL_INIT_VIDEO)) {
-        fprintf(stderr, "[ERROR] Failed to initialize SDL\n");
-    }
-    SDL_Window* window = SDL_CreateWindow("SubCub", 10, 10, WIDTH, HEIGHT,
-                                          SDL_WINDOW_ALWAYS_ON_TOP);
-    SDL_Renderer* renderer =
-        SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    printf("[INFO] Created window and renderer\n");
-
-    // generating texture
-    printf("[INFO] Starting to generate texture\n");
-    int gw = 31, gh = 31, gs = 800 / 29;
-    int _grid[gw * gh];
+void generate_grid(int gw, int gh, int gs, Grid* grid) {
+    int* _grid = malloc(sizeof(int) * gw * gh);
     int _grid2[gw * gh];
     for (int x = 0; x < gw; x++) {
         for (int y = 0; y < gh; y++) {
             if (x != 0 && x != gw - 1 && y != 0 && y != gh - 1) {
-                int r = rand() % 120 + 100;
+                int r = rand() & 0xff;
                 _grid[x + y * gw] = r;
             } else {
                 _grid[x + y * gw] = 0;
@@ -204,7 +188,7 @@ int main() {
     int weight_sum = 0;
     for (int i = 0; i < 9; i++) weight_sum += sw[i];
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 5; i++) {
         for (int x = 1; x < gw - 1; x++) {
             for (int y = 1; y < gh - 1; y++) {
                 _grid2[x + y * gw] = 0;
@@ -224,8 +208,32 @@ int main() {
             }
         }
     }
+    grid->w = gw;
+    grid->h = gh;
+    grid->s = gs;
+    if (grid->pts) free(grid->pts);
+    grid->pts = _grid;
+}
 
-    Grid grid = {.w = gw, .h = gh, .s = gs, .pts = _grid};
+int main() {
+    printf("[INFO] Hello, SubCub!\n");
+    srand(time(0));
+
+    // init sdl
+    if (SDL_Init(SDL_INIT_VIDEO)) {
+        fprintf(stderr, "[ERROR] Failed to initialize SDL\n");
+    }
+    SDL_Window* window = SDL_CreateWindow("SubCub", 10, 10, WIDTH, HEIGHT,
+                                          SDL_WINDOW_ALWAYS_ON_TOP);
+    SDL_Renderer* renderer =
+        SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    printf("[INFO] Created window and renderer\n");
+
+    // generating texture
+    printf("[INFO] Starting to generate texture\n");
+    int gw = 31, gh = 31, gs = 800 / 29;
+    Grid grid = {};
+    generate_grid(gw, gh, gs, &grid);
 
     SDL_Surface* surf = generate_surface(WIDTH, HEIGHT, &grid);
     SDL_Texture* bg_tex = SDL_CreateTextureFromSurface(renderer, surf);
