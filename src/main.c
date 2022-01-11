@@ -5,10 +5,10 @@
 #include <time.h>
 
 #define GRAY(n) \
-    (0xff000000 | (n & 0xff) | ((n & 0xff) << 8) | ((n & 0xff) << 16))
+    (0xff000000 | ((n) & 0xff) | (((n) & 0xff) << 8) | (((n) & 0xff) << 16))
 
 #define RGB(r, g, b) \
-    (0xff000000 | ((r & 0xff) << 16) | ((g & 0xff) << 16) | ((b & 0xff)))
+    (0xff000000 | (((r) & 0xff) << 16) | (((g) & 0xff) << 16) | (((b) & 0xff)))
 
 #define WIDTH 800
 #define HEIGHT 800
