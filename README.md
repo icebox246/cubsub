@@ -16,3 +16,14 @@ Todo:
 - [ ] Add UI with info about current state of game
 - [ ] Add level progression
 - [ ] Add menus
+
+# Quick Start
+
+Make sure you have `gcc` and `sdl2`
+
+```console
+./make.sh
+./game
+```
+
+![screenshot](./screenshot.jpg)
