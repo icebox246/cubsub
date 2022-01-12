@@ -145,6 +145,7 @@ void draw_player(SDL_Renderer* renderer, Player* player) {
 
 void update_player(Player* player, Grid* grid, float dt) {
     const float max_v = 200;
+    const float gravity = 30;
     int dx = 0, dy = 0;
     if (key_pressed[K_UP]) dy--;
     if (key_pressed[K_DOWN]) dy++;
@@ -159,9 +160,9 @@ void update_player(Player* player, Grid* grid, float dt) {
         player->x -= player->vx * dt;
         player->vx *= -1;
     }
-    player->y += player->vy * dt;
+    player->y += (player->vy + (!dy ? gravity : 0)) * dt;
     if (is_player_colliding(player, grid)) {
-        player->y -= player->vy * dt;
+        player->y -= (player->vy + (!dy ? gravity : 0)) * dt;
         player->vy *= -1;
     }
 }
