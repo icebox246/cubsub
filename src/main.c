@@ -261,6 +261,32 @@ void explode_bomb(int bx, int by, int rad, int val, Grid* grid) {
     }
 }
 
+void generate_fishes(Fish* fishes, int fish_count, Grid* grid) {
+    for (int i = 0; i < fish_count; i++) {
+        fishes[i].x = rand() % WIDTH;
+        fishes[i].y = rand() % HEIGHT;
+        fishes[i].r = 8;
+        int tries = 0;
+        while (is_point_colliding(fishes[i].x, fishes[i].y, grid) &&
+               tries++ < 100) {
+            fishes[i].x = rand() % WIDTH;
+            fishes[i].y = rand() % HEIGHT;
+        }
+        float angle = (rand() % (31415926 * 2)) / 10000000.f;
+        fishes[i].vx = cos(angle) * 20;
+        fishes[i].vy = sin(angle) * 20;
+        fishes[i].done = 0;
+    }
+}
+
+void place_player_at_random(Player* player, Grid* grid) {
+    int tries = 0;
+    while (is_player_colliding(player, grid) && tries++ < 200) {
+        player->x = rand() % WIDTH;
+        player->y = rand() % HEIGHT;
+    }
+}
+
 int main() {
     printf("[INFO] Hello, SubCub!\n");
     srand(time(0));
@@ -274,22 +300,7 @@ int main() {
     SDL_Renderer* renderer =
         SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     printf("[INFO] Created window and renderer\n");
-
-    // generating texture
-    printf("[INFO] Starting to generate texture\n");
-
-    int gw = 101, gh = 101, gs = HEIGHT / 99;
-
-    Grid grid = {};
-    generate_grid(gw, gh, gs, &grid);
-
-    SDL_Surface* surf = generate_surface(WIDTH, HEIGHT, &grid);
-
-    SDL_Texture* bg_tex = SDL_CreateTextureFromSurface(renderer, surf);
-
-    SDL_FreeSurface(surf);
-
-    printf("[INFO] Done generating texture\n");
+    SDL_Surface* surf;
 
     // Load textures
     surf = SDL_LoadBMP("cubsub.bmp");
@@ -304,14 +315,25 @@ int main() {
     SDL_Texture* bomb_tex = SDL_CreateTextureFromSurface(renderer, surf);
     SDL_FreeSurface(surf);
 
+    // generating texture
+    printf("[INFO] Starting to generate texture\n");
+
+    int gw = 101, gh = 101, gs = HEIGHT / 99;
+
+    Grid grid = {};
+    generate_grid(gw, gh, gs, &grid);
+
+    surf = generate_surface(WIDTH, HEIGHT, &grid);
+
+    SDL_Texture* bg_tex = SDL_CreateTextureFromSurface(renderer, surf);
+
+    SDL_FreeSurface(surf);
+
+    printf("[INFO] Done generating texture\n");
+
     // Create player
     Player player = {.x = 200, .y = 200, .r = 16, .tex = player_tex};
-
-    int tries = 0;
-    while (is_player_colliding(&player, &grid) && tries++ < 200) {
-        player.x = rand() % WIDTH;
-        player.y = rand() % HEIGHT;
-    }
+    place_player_at_random(&player, &grid);
 
     // List for bombs
 #define MAX_BOMBS 16
@@ -319,24 +341,10 @@ int main() {
     int bomb_count = 0;
 
     // Create fishes
-    int fish_count = 16;
-    Fish fishes[fish_count];
-
-    for (int i = 0; i < fish_count; i++) {
-        fishes[i].x = rand() % WIDTH;
-        fishes[i].y = rand() % HEIGHT;
-        fishes[i].r = 8;
-        int tries = 0;
-        while (is_point_colliding(fishes[i].x, fishes[i].y, &grid) &&
-               tries++ < 100) {
-            fishes[i].x = rand() % WIDTH;
-            fishes[i].y = rand() % HEIGHT;
-        }
-        float angle = (rand() % (31415926 * 2)) / 10000000.f;
-        fishes[i].vx = cos(angle) * 20;
-        fishes[i].vy = sin(angle) * 20;
-        fishes[i].done = 0;
-    }
+#define MAX_FISHES 16
+    Fish fishes[MAX_FISHES];
+    int fish_count = 15;
+    generate_fishes(fishes, fish_count, &grid);
 
     bool quit = 0;
     SDL_Event event;
@@ -372,6 +380,18 @@ int main() {
                         case SDLK_SPACE:
                             key_pressed[K_BOMB] = pressed;
                             break;
+                        case SDLK_r: {
+                            // regen noise
+                            generate_grid(gw, gh, gs, &grid);
+                            SDL_Surface* surf =
+                                generate_surface(WIDTH, HEIGHT, &grid);
+                            bg_tex =
+                                SDL_CreateTextureFromSurface(renderer, surf);
+                            SDL_FreeSurface(surf);
+
+                            generate_fishes(fishes, fish_count, &grid);
+                            place_player_at_random(&player, &grid);
+                        } break;
                     }
                 } break;
             }
