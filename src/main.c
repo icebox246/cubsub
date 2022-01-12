@@ -62,7 +62,7 @@ int is_point_colliding(int x, int y, Grid* grid) {
     float c2 = lerp(v[2], v[3], dx);
 
     int c = lerp(c1, c2, dy);
-    if (c < 120) {
+    if (c < 140) {
         return c;
     } else
         return 0;
@@ -74,7 +74,7 @@ SDL_Surface* generate_surface(int w, int h, Grid* grid) {
     for (int x = 0; x < w; x++) {
         for (int y = 0; y < h; y++) {
             int col = is_point_colliding(x, y, grid);
-            pixels[x + y * w] = col ? GRAY(col / 20 * 20 + 100) : 0;
+            pixels[x + y * w] = col ? GRAY(col / 20 * 30 + 20) : 0;
         }
     }
     SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(
@@ -119,13 +119,15 @@ void update_fish(Fish* fish, Grid* grid, float dt) {
 
 bool is_player_colliding(Player* player, Grid* grid) {
     bool collision = 0;
-    for (int _x = -1; _x <= 1; _x++) {
-        for (int _y = -1; _y <= 1; _y++) {
-            if (is_point_colliding(player->x + player->r * _x,
-                                   player->y + player->r * _y, grid)) {
-                collision = 1;
-                break;
-            }
+    for (int _x = -2; _x <= 2; _x++) {
+        for (int _y = -2; _y <= 2; _y++) {
+            if (abs(_x) == 2 || abs(_y) == 2 || (_x == 0 && _y == 0))
+                if (is_point_colliding(player->x + player->r * _x / 2.f,
+                                       player->y + player->r * _y / 2.f,
+                                       grid)) {
+                    collision = 1;
+                    break;
+                }
         }
         if (collision) break;
     }
@@ -176,7 +178,7 @@ void generate_grid(int gw, int gh, int gs, Grid* grid) {
     for (int x = 0; x < gw; x++) {
         for (int y = 0; y < gh; y++) {
             if (x != 0 && x != gw - 1 && y != 0 && y != gh - 1) {
-                int r = rand() & 0xff;
+                int r = rand() % 300;
                 _grid[x + y * gw] = r;
             } else {
                 _grid[x + y * gw] = 0;
@@ -185,14 +187,15 @@ void generate_grid(int gw, int gh, int gs, Grid* grid) {
     }
 
     int sw[9] = {
-        7, 6, 7,  //
-        6, 8, 6,  //
-        7, 6, 7   //
+        1, 3, 1,  //
+        3, 1, 3,  //
+        1, 3, 1   //
     };
     int weight_sum = 0;
     for (int i = 0; i < 9; i++) weight_sum += sw[i];
 
-    for (int i = 0; i < 12; i++) {
+	// NOTE: Smoothing seems to cause blocks appearing on the screen
+    for (int i = 0; i < 15; i++) {
         for (int x = 1; x < gw - 1; x++) {
             for (int y = 1; y < gh - 1; y++) {
                 _grid2[x + y * gw] = 0;
@@ -279,7 +282,8 @@ int main() {
     // Create player
     Player player = {.x = 200, .y = 200, .r = 16, .tex = player_tex};
 
-    while (is_player_colliding(&player, &grid)) {
+    int tries = 0;
+    while (is_player_colliding(&player, &grid) && tries++ < 200) {
         player.x = rand() % WIDTH;
         player.y = rand() % HEIGHT;
     }
@@ -292,7 +296,9 @@ int main() {
         fishes[i].x = rand() % WIDTH;
         fishes[i].y = rand() % HEIGHT;
         fishes[i].r = 8;
-        while (is_point_colliding(fishes[i].x, fishes[i].y, &grid)) {
+        int tries = 0;
+        while (is_point_colliding(fishes[i].x, fishes[i].y, &grid) &&
+               tries++ < 100) {
             fishes[i].x = rand() % WIDTH;
             fishes[i].y = rand() % HEIGHT;
         }
