@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 #define GRAY(n) \
@@ -10,17 +11,19 @@
 #define RGB(r, g, b) \
     (0xff000000 | (((r)&0xff) << 16) | (((g)&0xff) << 16) | (((b)&0xff)))
 
-#define WIDTH 800
-#define HEIGHT 800
+#define WIDTH 1000
+#define HEIGHT 1000
 
 Uint32 minU32(Uint32 a, Uint32 b) { return (a > b) ? b : a; }
 Uint32 maxU32(Uint32 a, Uint32 b) { return (a > b) ? a : b; }
+Sint32 minS32(Sint32 a, Sint32 b) { return (a > b) ? b : a; }
+Sint32 maxS32(Sint32 a, Sint32 b) { return (a > b) ? a : b; }
 
 float slen(float a, float b) { return a * a + b * b; }
 
 float lerp(float a, float b, float t) { return a + (b - a) * t; }
 
-typedef enum { K_UP = 1, K_DOWN, K_LEFT, K_RIGHT } Controls;
+typedef enum { K_UP = 1, K_DOWN, K_LEFT, K_RIGHT, K_BOMB } Controls;
 bool key_pressed[32];
 
 typedef struct {
@@ -182,14 +185,14 @@ void generate_grid(int gw, int gh, int gs, Grid* grid) {
     }
 
     int sw[9] = {
-        1, 4, 1,  //
-        4, 8, 4,  //
-        1, 4, 1   //
+        7, 6, 7,  //
+        6, 8, 6,  //
+        7, 6, 7   //
     };
     int weight_sum = 0;
     for (int i = 0; i < 9; i++) weight_sum += sw[i];
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 12; i++) {
         for (int x = 1; x < gw - 1; x++) {
             for (int y = 1; y < gh - 1; y++) {
                 _grid2[x + y * gw] = 0;
@@ -216,6 +219,24 @@ void generate_grid(int gw, int gh, int gs, Grid* grid) {
     grid->pts = _grid;
 }
 
+void explode_bomb(int bx, int by, int rad, int val, Grid* grid) {
+    Sint32 bgx = bx / grid->s, bgy = by / grid->s;
+    Sint32 gr = ceil(rad / (float)grid->s);
+
+    for (Sint32 gx = maxS32(1, bgx - gr - 2);
+         gx <= minS32(grid->w - 2, bgx + gr + 2); gx++) {
+        for (Sint32 gy = maxS32(1, bgy - gr - 2);
+             gy <= minS32(grid->h - 2, bgy + gr + 2); gy++) {
+            int x = gx * grid->s;
+            int y = gy * grid->s;
+            float dist = slen(bx - x, by - y);
+            dist = sqrt(dist);
+            int val_to_add = maxS32(0, lerp(val, 0, dist / rad));
+            grid->pts[gx + gy * grid->w] += val_to_add;
+        }
+    }
+}
+
 int main() {
     printf("[INFO] Hello, SubCub!\n");
     srand(time(0));
@@ -232,13 +253,18 @@ int main() {
 
     // generating texture
     printf("[INFO] Starting to generate texture\n");
-    int gw = 31, gh = 31, gs = 800 / 29;
+
+    int gw = 101, gh = 101, gs = HEIGHT / 99;
+
     Grid grid = {};
     generate_grid(gw, gh, gs, &grid);
 
     SDL_Surface* surf = generate_surface(WIDTH, HEIGHT, &grid);
+
     SDL_Texture* bg_tex = SDL_CreateTextureFromSurface(renderer, surf);
+
     SDL_FreeSurface(surf);
+
     printf("[INFO] Done generating texture\n");
 
     // Load textures
@@ -307,6 +333,9 @@ int main() {
                         case SDLK_RIGHT:
                             key_pressed[K_RIGHT] = pressed;
                             break;
+                        case SDLK_SPACE:
+                            key_pressed[K_BOMB] = pressed;
+                            break;
                     }
                 } break;
             }
@@ -332,6 +361,19 @@ int main() {
         }
 
         draw_player(renderer, &player);
+
+        if (key_pressed[K_BOMB]) {
+            explode_bomb(player.x, player.y, 70, 100, &grid);
+
+            SDL_Surface* surf = generate_surface(WIDTH, HEIGHT, &grid);
+            bg_tex = SDL_CreateTextureFromSurface(renderer, surf);
+            SDL_FreeSurface(surf);
+
+            /* SDL_SetRenderDrawColor(renderer,255,255,255,255); */
+            /* SDL_RenderClear(renderer); */
+
+            key_pressed[K_BOMB] = 0;
+        }
 
         // swap buffers
         SDL_RenderPresent(renderer);
