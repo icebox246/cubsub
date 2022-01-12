@@ -44,6 +44,26 @@ typedef struct {
     bool done;
 } Fish;
 
+typedef struct {
+    float x, y;
+    int r;
+    float life;
+} Bomb;
+
+void update_bomb(Bomb* bomb, float dt) {
+    const float gravity = 100;
+    bomb->life -= dt;
+    bomb->y += gravity * dt;
+}
+
+void draw_bomb(SDL_Renderer* renderer, Bomb* bomb, SDL_Texture* bomb_tex) {
+    SDL_Rect bomb_rect = {.x = bomb->x - bomb->r,
+                          .y = bomb->y - bomb->r,
+                          .w = bomb->r * 2,
+                          .h = bomb->r * 2};
+    SDL_RenderCopy(renderer, bomb_tex, NULL, &bomb_rect);
+}
+
 int is_point_colliding(int x, int y, Grid* grid) {
     int gx = minU32(x / grid->s, grid->w - 1);
     int gy = minU32(y / grid->s, grid->h - 1);
@@ -151,6 +171,7 @@ void draw_player(SDL_Renderer* renderer, Player* player) {
 void update_player(Player* player, Grid* grid, float dt) {
     const float max_v = 200;
     const float gravity = 30;
+    const float bounciness = 0.6f;
     int dx = 0, dy = 0;
     if (key_pressed[K_UP]) dy--;
     if (key_pressed[K_DOWN]) dy++;
@@ -163,12 +184,12 @@ void update_player(Player* player, Grid* grid, float dt) {
     player->x += player->vx * dt;
     if (is_player_colliding(player, grid)) {
         player->x -= player->vx * dt;
-        player->vx *= -1;
+        player->vx *= -bounciness;
     }
     player->y += (player->vy + (!dy ? gravity : 0)) * dt;
     if (is_player_colliding(player, grid)) {
         player->y -= (player->vy + (!dy ? gravity : 0)) * dt;
-        player->vy *= -1;
+        player->vy *= -bounciness;
     }
 }
 
@@ -194,7 +215,7 @@ void generate_grid(int gw, int gh, int gs, Grid* grid) {
     int weight_sum = 0;
     for (int i = 0; i < 9; i++) weight_sum += sw[i];
 
-	// NOTE: Smoothing seems to cause blocks appearing on the screen
+    // NOTE: Smoothing seems to cause blocks appearing on the screen
     for (int i = 0; i < 15; i++) {
         for (int x = 1; x < gw - 1; x++) {
             for (int y = 1; y < gh - 1; y++) {
@@ -279,6 +300,10 @@ int main() {
     SDL_Texture* fish_tex = SDL_CreateTextureFromSurface(renderer, surf);
     SDL_FreeSurface(surf);
 
+    surf = SDL_LoadBMP("cubbomb.bmp");
+    SDL_Texture* bomb_tex = SDL_CreateTextureFromSurface(renderer, surf);
+    SDL_FreeSurface(surf);
+
     // Create player
     Player player = {.x = 200, .y = 200, .r = 16, .tex = player_tex};
 
@@ -287,6 +312,11 @@ int main() {
         player.x = rand() % WIDTH;
         player.y = rand() % HEIGHT;
     }
+
+    // List for bombs
+#define MAX_BOMBS 16
+    Bomb bombs[MAX_BOMBS] = {};
+    int bomb_count = 0;
 
     // Create fishes
     int fish_count = 16;
@@ -368,17 +398,30 @@ int main() {
 
         draw_player(renderer, &player);
 
-        if (key_pressed[K_BOMB]) {
-            explode_bomb(player.x, player.y, 70, 100, &grid);
-
-            SDL_Surface* surf = generate_surface(WIDTH, HEIGHT, &grid);
-            bg_tex = SDL_CreateTextureFromSurface(renderer, surf);
-            SDL_FreeSurface(surf);
-
-            /* SDL_SetRenderDrawColor(renderer,255,255,255,255); */
-            /* SDL_RenderClear(renderer); */
-
+        if (key_pressed[K_BOMB] && bomb_count < MAX_BOMBS) {
+            bombs[bomb_count].x = player.x;
+            bombs[bomb_count].y = player.y;
+            bombs[bomb_count].life = 5;
+            bombs[bomb_count].r = 8;
+            bomb_count++;
             key_pressed[K_BOMB] = 0;
+        }
+
+        for (int i = 0; i < bomb_count; i++) {
+            update_bomb(&bombs[i], dt);
+            draw_bomb(renderer, &bombs[i], bomb_tex);
+            if (bombs[i].life <= 0 ||
+                is_point_colliding(bombs[i].x, bombs[i].y, &grid)) {
+                explode_bomb(bombs[i].x, bombs[i].y, 70, 100, &grid);
+                SDL_Surface* surf = generate_surface(WIDTH, HEIGHT, &grid);
+                bg_tex = SDL_CreateTextureFromSurface(renderer, surf);
+                SDL_FreeSurface(surf);
+                bomb_count--;
+                if (bomb_count > 0) {
+                    memcpy(&bombs[i], &bombs[bomb_count], sizeof(Bomb));
+                }
+                i--;
+            }
         }
 
         // swap buffers
